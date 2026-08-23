@@ -1,33 +1,36 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"medical-dashboard/models"
 
-	"gorm.io/driver/postgres"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
 
 func Connect() {
-	host := getEnv("DB_HOST", "localhost")
-	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "meduser")
-	password := getEnv("DB_PASSWORD", "medpass123")
-	dbname := getEnv("DB_NAME", "medical_dashboard")
-
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+	dbPath := getDbPath()
+	log.Printf("Using database: %s", dbPath)
 
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Warn),
+	})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to open database: %v", err)
 	}
+
+	// SQLite performance tuning
+	sqlDB, _ := DB.DB()
+	sqlDB.Exec("PRAGMA journal_mode=WAL")
+	sqlDB.Exec("PRAGMA synchronous=NORMAL")
+	sqlDB.Exec("PRAGMA cache_size=10000")
 
 	log.Println("Database connected successfully")
 
@@ -49,9 +52,11 @@ func seedAdmin() {
 	}
 }
 
-func getEnv(key, fallback string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
+func getDbPath() string {
+	// Store DB next to the executable
+	exe, err := os.Executable()
+	if err != nil {
+		return "dashboard.db"
 	}
-	return fallback
+	return filepath.Join(filepath.Dir(exe), "dashboard.db")
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate 3000 rows of synthetic US drug reaction data for the last 3 months."""
 
+import os
 import random
 from datetime import datetime, timedelta
 from openpyxl import Workbook
@@ -139,6 +140,8 @@ for i in range(3000):
         "Yes" if required_hospital else "No",
     ])
 
-output = "/output/drug_reactions_sample.xlsx"
+import sys
+output_dir = "/output" if os.path.isdir("/output") else os.path.dirname(os.path.abspath(sys.argv[0]))
+output = os.path.join(output_dir, "drug_reactions_sample.xlsx")
 wb.save(output)
 print(f"Generated {output} with 3000 rows")

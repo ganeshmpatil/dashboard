@@ -31,9 +31,9 @@ func GetSummary(c *gin.Context) {
 		Scan(&severityCounts)
 
 	c.JSON(http.StatusOK, gin.H{
-		"total_reactions": totalReactions,
-		"total_uploads":   totalUploads,
-		"total_patients":  totalPatients,
+		"total_reactions":    totalReactions,
+		"total_uploads":     totalUploads,
+		"total_patients":    totalPatients,
 		"severity_breakdown": severityCounts,
 	})
 }
@@ -103,7 +103,7 @@ func GetReactionsByState(c *gin.Context) {
 func GetReactionsByMonth(c *gin.Context) {
 	var results []CountResult
 	database.DB.Model(&models.DrugReaction{}).
-		Select("to_char(reaction_date, 'YYYY-MM') as label, count(*) as count").
+		Select("strftime('%Y-%m', reaction_date) as label, count(*) as count").
 		Where("reaction_date > '2000-01-01'").
 		Group("label").
 		Order("label").
@@ -141,7 +141,7 @@ func GetDrugClassBreakdown(c *gin.Context) {
 func GetSeriousVsNonSerious(c *gin.Context) {
 	var results []CountResult
 	database.DB.Model(&models.DrugReaction{}).
-		Select(`CASE WHEN is_serious THEN 'Serious' ELSE 'Non-Serious' END as label, count(*) as count`).
+		Select(`CASE WHEN is_serious = 1 THEN 'Serious' ELSE 'Non-Serious' END as label, count(*) as count`).
 		Group("label").
 		Scan(&results)
 	c.JSON(http.StatusOK, results)

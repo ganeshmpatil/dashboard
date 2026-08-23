@@ -1,64 +1,81 @@
 # Drug Reaction Dashboard
 
-A full-stack web application for uploading, storing, and visualizing adverse drug reaction data for the US market.
+A single-exe web application for uploading and visualizing adverse drug reaction data (US market).
 
-## Tech Stack
+**Zero install required.** The end user receives two files, double-clicks the exe, and the app opens in their browser.
 
-- **Backend:** Go (Gin framework) + GORM
-- **Database:** PostgreSQL 15
-- **Frontend:** React 18 + Recharts
-- **Infrastructure:** Docker Compose (auto-installed by setup script)
+## For End Users (Windows / Linux / macOS)
 
-## Prerequisites
+### What you receive
 
-- **Nothing.** The setup script installs everything automatically.
-- Supported: Windows 10/11, Ubuntu/Debian, Fedora, macOS
+| File | Purpose |
+|------|---------|
+| `dashboard.exe` (17 MB) | The entire application |
+| `drug_reactions_sample.xlsx` | Sample dataset with 3000 records |
 
-## Quick Start
+### How to run
 
-### Windows
+**Windows:** Double-click `dashboard.exe`
 
-```
-1. Clone or download this repository
-2. Right-click setup.bat -> "Run as administrator"
-3. Done. Browser opens automatically.
-```
-
-### Linux / macOS
-
+**Linux / macOS:**
 ```bash
-git clone https://github.com/ganeshmpatil/dashboard.git
-cd dashboard
-chmod +x setup.sh
-./setup.sh
+chmod +x dashboard-linux   # or dashboard-mac
+./dashboard-linux
 ```
 
-The setup script will:
-1. Install Docker (if not already installed)
-2. Start Docker engine
-3. Build and launch all services (PostgreSQL, Go backend, React frontend)
-4. Generate a sample Excel file with 3000 drug reaction records
-5. Open the app in your browser
-
-## Login
+The browser opens automatically at **http://localhost:8080**
 
 | Username | Password |
 |----------|----------|
 | admin    | admin    |
 
-## Sample Data
+### Steps
+1. Login with admin / admin
+2. Go to **Upload Data** and upload `drug_reactions_sample.xlsx`
+3. Go to **Dashboard** to see charts
 
-The setup script auto-extracts `drug_reactions_sample.xlsx` (3000 records) into the project folder. Upload it via the **Upload Data** screen.
+### To stop
+Press `Ctrl+C` in the terminal window, or close the terminal.
 
-## Features
+Data is stored in `dashboard.db` (SQLite) next to the exe. Delete it to reset.
 
-### Upload Data
-- Drag-and-drop or browse to upload `.xlsx` files
-- Automatic parsing of 18 data columns
-- Batch insert for performance
+---
 
-### Dashboard (Visualize)
-- Summary cards: total reactions, patients, uploads, severe cases
+## For Developers (Building from Source)
+
+### Prerequisites (build machine only)
+- Go 1.21+
+- Node.js 18+
+
+### Build
+
+```bash
+git clone https://github.com/ganeshmpatil/dashboard.git
+cd dashboard
+chmod +x build.sh
+./build.sh
+```
+
+This produces binaries in `dist/`:
+- `dashboard.exe` (Windows)
+- `dashboard-linux` (Linux)
+- `dashboard-mac` (macOS)
+
+### Tech Stack
+- **Backend:** Go (Gin + GORM + SQLite)
+- **Frontend:** React 18 + Recharts + Vite
+- **Database:** SQLite (embedded, no server needed)
+
+### Architecture
+
+```
+Single Executable (dashboard.exe)
+  |-- Embedded React frontend (served at /)
+  |-- Go REST API (served at /api/*)
+  |-- SQLite database (dashboard.db created on first run)
+```
+
+### Charts Included
 - Reactions over time (line chart)
 - Top 15 drugs by reaction count (horizontal bar)
 - Severity distribution (pie chart)
@@ -69,26 +86,7 @@ The setup script auto-extracts `drug_reactions_sample.xlsx` (3000 records) into 
 - Top reaction types (bar chart)
 - Drug class breakdown (bar chart)
 
-### Recent Uploads
-- View upload history with file name, row count, timestamp
-- Delete uploads (removes associated reaction data)
-
-## Architecture
-
-```
-setup.bat / setup.sh        <-- one-click entry point
-  |
-  |-- Installs Docker (if needed)
-  |-- docker-compose.yml
-        |-- postgres        (PostgreSQL 15, port 5432)
-        |-- datagen         (Python - generates sample Excel)
-        |-- backend         (Go API, port 8080)
-        |-- frontend        (React + Nginx, port 3000 -> proxies /api to backend)
-```
-
-## Excel Format
-
-The upload expects `.xlsx` files with these column headers:
+### Excel Format
 
 | Column | Description |
 |--------|-------------|
@@ -110,10 +108,3 @@ The upload expects `.xlsx` files with these column headers:
 | meddra_term | MedDRA preferred term |
 | is_serious | Yes / No |
 | required_hospital | Yes / No |
-
-## Stopping
-
-```bash
-docker compose down          # stop services
-docker compose down -v       # stop and remove database volume
-```
