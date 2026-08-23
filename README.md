@@ -7,27 +7,38 @@ A full-stack web application for uploading, storing, and visualizing adverse dru
 - **Backend:** Go (Gin framework) + GORM
 - **Database:** PostgreSQL 15
 - **Frontend:** React 18 + Recharts
-- **Infrastructure:** Docker Compose (zero local installs needed)
+- **Infrastructure:** Docker Compose (auto-installed by setup script)
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac/Linux)
-- That's it. No Go, Node, Python, or PostgreSQL installation required.
+- **Nothing.** The setup script installs everything automatically.
+- Supported: Windows 10/11, Ubuntu/Debian, Fedora, macOS
 
 ## Quick Start
 
+### Windows
+
+```
+1. Clone or download this repository
+2. Right-click setup.bat -> "Run as administrator"
+3. Done. Browser opens automatically.
+```
+
+### Linux / macOS
+
 ```bash
-# 1. Clone the repository
 git clone https://github.com/ganeshmpatil/dashboard.git
 cd dashboard
-
-# 2. Start all services (first run takes a few minutes to build)
-docker-compose up --build
-
-# 3. Open the app
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8080
+chmod +x setup.sh
+./setup.sh
 ```
+
+The setup script will:
+1. Install Docker (if not already installed)
+2. Start Docker engine
+3. Build and launch all services (PostgreSQL, Go backend, React frontend)
+4. Generate a sample Excel file with 3000 drug reaction records
+5. Open the app in your browser
 
 ## Login
 
@@ -37,15 +48,7 @@ docker-compose up --build
 
 ## Sample Data
 
-A sample Excel file with 3000 synthetic drug reaction records is auto-generated
-inside the `datagen` container. To use it:
-
-```bash
-# Copy the generated file from the container
-docker cp med_datagen:/output/drug_reactions_sample.xlsx .
-```
-
-Then upload it via the **Upload Data** screen.
+The setup script auto-extracts `drug_reactions_sample.xlsx` (3000 records) into the project folder. Upload it via the **Upload Data** screen.
 
 ## Features
 
@@ -73,12 +76,14 @@ Then upload it via the **Upload Data** screen.
 ## Architecture
 
 ```
-docker-compose.yml
+setup.bat / setup.sh        <-- one-click entry point
   |
-  |-- postgres      (PostgreSQL 15, port 5432)
-  |-- datagen       (Python - generates sample Excel)
-  |-- backend       (Go API, port 8080)
-  |-- frontend      (React + Nginx, port 3000 -> proxies /api to backend)
+  |-- Installs Docker (if needed)
+  |-- docker-compose.yml
+        |-- postgres        (PostgreSQL 15, port 5432)
+        |-- datagen         (Python - generates sample Excel)
+        |-- backend         (Go API, port 8080)
+        |-- frontend        (React + Nginx, port 3000 -> proxies /api to backend)
 ```
 
 ## Excel Format
@@ -109,6 +114,6 @@ The upload expects `.xlsx` files with these column headers:
 ## Stopping
 
 ```bash
-docker-compose down          # stop services
-docker-compose down -v       # stop + remove database volume
+docker compose down          # stop services
+docker compose down -v       # stop and remove database volume
 ```
