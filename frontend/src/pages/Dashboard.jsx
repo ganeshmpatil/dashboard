@@ -189,7 +189,7 @@ function DynamicPanel({ defaultField, defaultChart, defaultMetric, title, span, 
         <FieldSelect value={chart} onChange={setChart} options={CHART_TYPES} />
       </>}
     >
-      <ReactECharts option={buildChartOption(data, chart)} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+      <ReactECharts key={chart} option={buildChartOption(data, chart)} notMerge={true} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
     </Panel>
   );
 }
