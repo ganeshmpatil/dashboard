@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: med_db
+    environment:
+      POSTGRES_USER: meduser
+      POSTGRES_PASSWORD: medpass123
+      POSTGRES_DB: medical_dashboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meduser -d medical_dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  datagen:
+    build:
+      context: ./data
+      dockerfile: Dockerfile
+    container_name: med_datagen
+    volumes:
+      - shared_data:/output
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: med_backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: meduser
+      DB_PASSWORD: medpass123
+      DB_NAME: medical_dashboard
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - shared_data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: med_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  shared_data:
