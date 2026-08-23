@@ -1,43 +1,35 @@
 # Drug Reaction Dashboard
 
-A single-exe web application for uploading and visualizing adverse drug reaction data (US market).
+## Windows Quick Start (No Installation Required)
 
-**Zero install required.** The end user receives two files, double-clicks the exe, and the app opens in their browser.
+**Step 1 - Download** two files from the [Releases page](https://github.com/ganeshmpatil/dashboard/releases/tag/v1.0.0):
+- `dashboard.exe`
+- `drug_reactions_sample.xlsx`
 
-## For End Users (Windows / Linux / macOS)
+Save both files in the same folder (e.g., Desktop).
 
-### What you receive
+**Step 2 - Run:** Double-click `dashboard.exe`. A terminal window opens and your browser launches automatically at http://localhost:8080
 
-| File | Purpose |
-|------|---------|
-| `dashboard.exe` (17 MB) | The entire application |
-| `drug_reactions_sample.xlsx` | Sample dataset with 3000 records |
+**Step 3 - Login:** Username `admin` / Password `admin`
 
-### How to run
+**Step 4 - Upload Data:**
+- Click **Upload Data** in the left sidebar
+- Drag and drop `drug_reactions_sample.xlsx` into the upload area
+- Wait for the success message
 
-**Windows:** Double-click `dashboard.exe`
+**Step 5 - View Dashboard:**
+- Click **Dashboard** in the left sidebar
+- All charts load with your uploaded data
+- Each chart panel has 3 dropdowns you can change:
+  - **Group By** - field to analyze (drug, severity, state, age group, etc.)
+  - **Metric** - measurement (count, avg age, unique patients, etc.)
+  - **Chart** - visualization type (bar, pie, donut, line, area, radar)
+- Use the **All Uploads** dropdown at top-right to filter charts by a specific upload
 
-**Linux / macOS:**
-```bash
-chmod +x dashboard-linux   # or dashboard-mac
-./dashboard-linux
-```
+**Step 6 - Stop:** Close the terminal window or press `Ctrl+C`
 
-The browser opens automatically at **http://localhost:8080**
-
-| Username | Password |
-|----------|----------|
-| admin    | admin    |
-
-### Steps
-1. Login with admin / admin
-2. Go to **Upload Data** and upload `drug_reactions_sample.xlsx`
-3. Go to **Dashboard** to see charts
-
-### To stop
-Press `Ctrl+C` in the terminal window, or close the terminal.
-
-Data is stored in `dashboard.db` (SQLite) next to the exe. Delete it to reset.
+> Data is saved in `dashboard.db` next to the exe. Delete this file to reset all data.
+> No installation, no admin rights, no internet connection needed to run.
 
 ---
 
@@ -56,14 +48,14 @@ chmod +x build.sh
 ./build.sh
 ```
 
-This produces binaries in `dist/`:
+Produces binaries in `dist/`:
 - `dashboard.exe` (Windows)
 - `dashboard-linux` (Linux)
 - `dashboard-mac` (macOS)
 
 ### Tech Stack
 - **Backend:** Go (Gin + GORM + SQLite)
-- **Frontend:** React 18 + Recharts + Vite
+- **Frontend:** React 18 + Apache ECharts + Vite
 - **Database:** SQLite (embedded, no server needed)
 
 ### Architecture
@@ -71,20 +63,17 @@ This produces binaries in `dist/`:
 ```
 Single Executable (dashboard.exe)
   |-- Embedded React frontend (served at /)
-  |-- Go REST API (served at /api/*)
+  |-- Go REST API with dynamic query engine (served at /api/*)
   |-- SQLite database (dashboard.db created on first run)
 ```
 
-### Charts Included
-- Reactions over time (line chart)
-- Top 15 drugs by reaction count (horizontal bar)
-- Severity distribution (pie chart)
-- Outcome distribution (pie chart)
-- Gender distribution (donut chart)
-- Serious vs non-serious (donut chart)
-- Age group distribution (bar chart)
-- Top reaction types (bar chart)
-- Drug class breakdown (bar chart)
+### Dashboard Features
+- Grafana-style dark theme with collapsible panels
+- 14 chart panels, each independently configurable
+- 15 grouping fields, 5 metrics, 7 chart types per panel
+- Cross-tab stacked bar analysis (e.g. Drug x Severity)
+- Per-upload dashboard filtering
+- 8 summary KPI stat cards
 
 ### Excel Format
 
