@@ -6,7 +6,9 @@ echo   Drug Reaction Dashboard - Auto Setup
 echo ============================================
 echo.
 
+:: -------------------------------------------
 :: Check for admin privileges
+:: -------------------------------------------
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo [!] This script requires Administrator privileges.
@@ -16,9 +18,52 @@ if %errorlevel% neq 0 (
 )
 
 :: -------------------------------------------
-:: Step 1: Check/Install Docker Desktop
+:: Step 1: Enable WSL2 (required for Docker)
 :: -------------------------------------------
-echo [1/5] Checking for Docker Desktop...
+echo [1/6] Checking Windows features (WSL2, Virtual Machine Platform)...
+
+:: Check if WSL is already working
+wsl --status >nul 2>&1
+if %errorlevel% equ 0 (
+    echo       WSL2 is already enabled.
+    goto :check_docker
+)
+
+:: Enable required Windows features
+echo       Enabling WSL and Virtual Machine Platform...
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart >nul 2>&1
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart >nul 2>&1
+
+:: Install/update WSL
+echo       Installing WSL2...
+wsl --install --no-distribution >nul 2>&1
+wsl --set-default-version 2 >nul 2>&1
+
+:: Check if a reboot is needed (features just enabled for the first time)
+:: We check by trying wsl --status again
+wsl --status >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo  =============================================
+    echo   Windows features have been enabled.
+    echo   A RESTART is required before continuing.
+    echo.
+    echo   After restart, run this script again.
+    echo  =============================================
+    echo.
+    set /p REBOOT=  Restart now? (Y/N):
+    if /i "%REBOOT%"=="Y" shutdown /r /t 10 /c "Restarting for Docker setup..."
+    pause
+    exit /b 0
+)
+
+echo       WSL2 is ready.
+
+:check_docker
+:: -------------------------------------------
+:: Step 2: Check/Install Docker Desktop
+:: -------------------------------------------
+echo [2/6] Checking for Docker Desktop...
 
 where docker >nul 2>&1
 if %errorlevel% equ 0 (
@@ -32,7 +77,7 @@ echo.
 :: Try winget first (Windows 10 1709+ / Windows 11)
 where winget >nul 2>&1
 if %errorlevel% equ 0 (
-    echo       Installing via winget...
+    echo       Installing via winget (this may take a few minutes)...
     winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
     if %errorlevel% equ 0 (
         echo.
@@ -44,6 +89,9 @@ if %errorlevel% equ 0 (
         echo.
         echo   After restart, run this script again.
         echo  =============================================
+        echo.
+        set /p REBOOT=  Restart now? (Y/N):
+        if /i "%REBOOT%"=="Y" shutdown /r /t 10 /c "Restarting for Docker setup..."
         pause
         exit /b 0
     )
@@ -72,28 +120,32 @@ echo   IMPORTANT: A system RESTART is required.
 echo.
 echo   After restart, run this script again.
 echo  =============================================
+echo.
+set /p REBOOT=  Restart now? (Y/N):
+if /i "%REBOOT%"=="Y" shutdown /r /t 10 /c "Restarting for Docker setup..."
 pause
 exit /b 0
 
 :check_docker_running
 :: -------------------------------------------
-:: Step 2: Ensure Docker Desktop is running
+:: Step 3: Ensure Docker Desktop is running
 :: -------------------------------------------
-echo [2/5] Ensuring Docker Desktop is running...
+echo [3/6] Ensuring Docker Desktop is running...
 
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
     echo       Starting Docker Desktop...
     start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
 
-    echo       Waiting for Docker to be ready (this may take up to 60 seconds)...
+    echo       Waiting for Docker engine to be ready (can take up to 90 seconds)...
     set /a attempts=0
     :wait_loop
     timeout /t 5 /nobreak >nul
     docker info >nul 2>&1
     if %errorlevel% equ 0 goto :docker_ready
     set /a attempts+=1
-    if %attempts% lss 12 goto :wait_loop
+    echo       ... still waiting (%attempts%/18)
+    if %attempts% lss 18 goto :wait_loop
 
     echo [ERROR] Docker Desktop did not start in time.
     echo         Please start Docker Desktop manually and run this script again.
@@ -102,30 +154,33 @@ if %errorlevel% neq 0 (
 )
 
 :docker_ready
-echo       Docker is running.
+echo       Docker engine is running.
 
 :: -------------------------------------------
-:: Step 3: Build and start all services
+:: Step 4: Build and start all services
 :: -------------------------------------------
-echo [3/5] Building and starting all services (first run takes 3-5 minutes)...
+echo [4/6] Building and starting all services (first run takes 3-5 minutes)...
 echo.
 
-docker compose up --build -d
+:: Change to the directory where this script lives
+cd /d "%~dp0"
+
+docker compose up --build -d 2>nul
 if %errorlevel% neq 0 (
     :: Try legacy docker-compose command
     docker-compose up --build -d
     if %errorlevel% neq 0 (
-        echo [ERROR] Failed to start services.
+        echo [ERROR] Failed to start services. Check the output above for details.
         pause
         exit /b 1
     )
 )
 
 :: -------------------------------------------
-:: Step 4: Wait for backend to be healthy
+:: Step 5: Wait for backend to be healthy
 :: -------------------------------------------
 echo.
-echo [4/5] Waiting for services to be ready...
+echo [5/6] Waiting for services to be ready...
 set /a attempts=0
 :health_loop
 timeout /t 3 /nobreak >nul
@@ -139,13 +194,13 @@ echo       Backend is taking longer than expected, but services may still be sta
 echo       All services are up.
 
 :: -------------------------------------------
-:: Step 5: Extract sample data
+:: Step 6: Extract sample data
 :: -------------------------------------------
-echo [5/5] Extracting sample data file...
+echo [6/6] Extracting sample data file...
 timeout /t 5 /nobreak >nul
 docker cp med_datagen:/output/drug_reactions_sample.xlsx "%~dp0drug_reactions_sample.xlsx" >nul 2>&1
 if exist "%~dp0drug_reactions_sample.xlsx" (
-    echo       Sample file: drug_reactions_sample.xlsx (3000 records)
+    echo       Sample file ready: drug_reactions_sample.xlsx (3000 records)
 ) else (
     echo       Sample file generation in progress, run this to get it later:
     echo       docker cp med_datagen:/output/drug_reactions_sample.xlsx .
@@ -165,7 +220,7 @@ echo.
 echo   Next steps:
 echo     1. Open http://localhost:3000 in your browser
 echo     2. Login with admin / admin
-echo     3. Go to Upload Data page
+echo     3. Go to "Upload Data" page
 echo     4. Upload drug_reactions_sample.xlsx
 echo     5. View charts on the Dashboard
 echo.
