@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { colors } from '../theme';
 import api from '../api';
 
 const navItems = [
@@ -20,14 +21,14 @@ export default function Layout() {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: colors.bg }}>
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
-          <span className="material-icons-outlined" style={{ fontSize: 28, color: '#4f8cf7' }}>
+          <span className="material-icons-outlined" style={{ fontSize: 24, color: colors.accent }}>
             monitoring
           </span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginLeft: 10 }}>
-            Drug Reaction<br/>Dashboard
+          <span style={{ fontSize: 13, fontWeight: 700, color: colors.textBright, marginLeft: 10 }}>
+            ADR Dashboard
           </span>
         </div>
         <nav style={styles.nav}>
@@ -38,11 +39,12 @@ export default function Layout() {
               end={item.path === '/'}
               style={({ isActive }) => ({
                 ...styles.navLink,
-                backgroundColor: isActive ? 'rgba(79,140,247,0.15)' : 'transparent',
-                color: isActive ? '#4f8cf7' : '#a0aec0',
+                backgroundColor: isActive ? colors.activeLink : 'transparent',
+                color: isActive ? colors.accent : colors.textMuted,
+                borderLeft: isActive ? `3px solid ${colors.accent}` : '3px solid transparent',
               })}
             >
-              <span className="material-icons-outlined" style={{ marginRight: 12 }}>
+              <span className="material-icons-outlined" style={{ marginRight: 10, fontSize: 18 }}>
                 {item.icon}
               </span>
               {item.label}
@@ -51,11 +53,11 @@ export default function Layout() {
         </nav>
         <div style={styles.userSection}>
           <div style={styles.userInfo}>
-            <span className="material-icons-outlined" style={{ marginRight: 8 }}>person</span>
+            <span className="material-icons-outlined" style={{ marginRight: 6, fontSize: 16 }}>person</span>
             {username}
           </div>
           <button onClick={handleLogout} style={styles.logoutBtn}>
-            <span className="material-icons-outlined" style={{ fontSize: 18, marginRight: 6 }}>logout</span>
+            <span className="material-icons-outlined" style={{ fontSize: 14, marginRight: 4 }}>logout</span>
             Logout
           </button>
         </div>
@@ -69,56 +71,56 @@ export default function Layout() {
 
 const styles = {
   sidebar: {
-    width: 240,
-    backgroundColor: '#1a1a2e',
+    width: 200,
+    backgroundColor: colors.sidebar,
     display: 'flex',
     flexDirection: 'column',
     position: 'fixed',
     height: '100vh',
+    borderRight: `1px solid ${colors.panelBorder}`,
     zIndex: 10,
   },
   logo: {
     display: 'flex',
     alignItems: 'center',
-    padding: '24px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    padding: '16px 14px',
+    borderBottom: `1px solid ${colors.panelBorder}`,
   },
   nav: {
     flex: 1,
-    padding: '16px 12px',
+    padding: '8px 0',
     display: 'flex',
     flexDirection: 'column',
-    gap: 4,
+    gap: 2,
   },
   navLink: {
     display: 'flex',
     alignItems: 'center',
-    padding: '10px 16px',
-    borderRadius: 8,
+    padding: '8px 14px',
     textDecoration: 'none',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 500,
-    transition: 'all 0.2s',
+    transition: 'all 0.15s',
   },
   userSection: {
-    padding: '16px 20px',
-    borderTop: '1px solid rgba(255,255,255,0.08)',
+    padding: '12px 14px',
+    borderTop: `1px solid ${colors.panelBorder}`,
   },
   userInfo: {
-    color: '#a0aec0',
-    fontSize: 13,
+    color: colors.textMuted,
+    fontSize: 12,
     display: 'flex',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   logoutBtn: {
     background: 'none',
-    border: '1px solid rgba(255,255,255,0.15)',
-    color: '#a0aec0',
-    padding: '6px 12px',
-    borderRadius: 6,
+    border: `1px solid ${colors.panelBorder}`,
+    color: colors.textMuted,
+    padding: '4px 10px',
+    borderRadius: 4,
     cursor: 'pointer',
-    fontSize: 12,
+    fontSize: 11,
     display: 'flex',
     alignItems: 'center',
     width: '100%',
@@ -126,8 +128,8 @@ const styles = {
   },
   main: {
     flex: 1,
-    marginLeft: 240,
-    padding: '24px 32px',
+    marginLeft: 200,
+    padding: '16px 20px',
     minHeight: '100vh',
   },
 };

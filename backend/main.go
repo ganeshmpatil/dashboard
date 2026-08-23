@@ -26,10 +26,9 @@ func main() {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: true,
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
 	}))
 
 	// API routes
@@ -44,16 +43,9 @@ func main() {
 		api.DELETE("/uploads/:id", handlers.DeleteUpload)
 
 		api.GET("/analytics/summary", handlers.GetSummary)
-		api.GET("/analytics/by-drug", handlers.GetReactionsByDrug)
-		api.GET("/analytics/by-severity", handlers.GetReactionsBySeverity)
-		api.GET("/analytics/by-outcome", handlers.GetReactionsByOutcome)
-		api.GET("/analytics/by-gender", handlers.GetReactionsByGender)
-		api.GET("/analytics/by-type", handlers.GetReactionsByType)
-		api.GET("/analytics/by-state", handlers.GetReactionsByState)
-		api.GET("/analytics/by-month", handlers.GetReactionsByMonth)
-		api.GET("/analytics/by-age", handlers.GetAgeDistribution)
-		api.GET("/analytics/by-drug-class", handlers.GetDrugClassBreakdown)
-		api.GET("/analytics/serious", handlers.GetSeriousVsNonSerious)
+		api.GET("/analytics/query", handlers.DynamicQuery)
+		api.GET("/analytics/cross", handlers.CrossTabQuery)
+		api.GET("/analytics/fields", handlers.GetFields)
 	}
 
 	// Serve embedded React frontend

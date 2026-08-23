@@ -1,277 +1,319 @@
-import React, { useState, useEffect } from 'react';
-import {
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
+import React, { useState, useEffect, useCallback } from 'react';
+import ReactECharts from 'echarts-for-react';
 import api from '../api';
+import { colors, chartColors, severityColors } from '../theme';
+import Panel, { StatPanel, FieldSelect } from '../components/Panel';
 
-const COLORS = ['#4f8cf7', '#38a169', '#e53e3e', '#ed8936', '#9f7aea', '#dd6b20', '#3182ce', '#d69e2e'];
-const SEVERITY_COLORS = { Mild: '#38a169', Moderate: '#ed8936', Severe: '#e53e3e', 'Life-threatening': '#9b2c2c' };
+const FIELD_OPTIONS = [
+  { value: 'drug_name', label: 'Drug Name' },
+  { value: 'drug_class', label: 'Drug Class' },
+  { value: 'reaction_type', label: 'Reaction Type' },
+  { value: 'reaction_severity', label: 'Severity' },
+  { value: 'outcome', label: 'Outcome' },
+  { value: 'patient_gender', label: 'Gender' },
+  { value: 'reporter_type', label: 'Reporter' },
+  { value: 'facility_state', label: 'State' },
+  { value: 'route_of_admin', label: 'Route' },
+  { value: 'age_group', label: 'Age Group' },
+  { value: 'month', label: 'Month' },
+  { value: 'is_serious', label: 'Serious' },
+  { value: 'required_hospital', label: 'Hospitalized' },
+  { value: 'onset_bucket', label: 'Onset Period' },
+  { value: 'meddra_term', label: 'MedDRA Term' },
+];
 
-function StatCard({ icon, label, value, color }) {
+const METRIC_OPTIONS = [
+  { value: 'count', label: 'Count' },
+  { value: 'patients', label: 'Unique Patients' },
+  { value: 'avg_age', label: 'Avg Age' },
+  { value: 'avg_weight', label: 'Avg Weight' },
+  { value: 'avg_onset', label: 'Avg Onset Days' },
+];
+
+const CHART_TYPES = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'hbar', label: 'H-Bar' },
+  { value: 'pie', label: 'Pie' },
+  { value: 'donut', label: 'Donut' },
+  { value: 'line', label: 'Line' },
+  { value: 'area', label: 'Area' },
+  { value: 'radar', label: 'Radar' },
+];
+
+const baseChartTheme = {
+  backgroundColor: 'transparent',
+  textStyle: { color: colors.textMuted, fontSize: 11 },
+  legend: { textStyle: { color: colors.textMuted, fontSize: 11 }, top: 4, right: 8 },
+  tooltip: {
+    backgroundColor: '#1e2127',
+    borderColor: colors.panelBorder,
+    textStyle: { color: colors.text, fontSize: 12 },
+  },
+};
+
+function buildChartOption(data, chartType) {
+  if (!data || data.length === 0) return { ...baseChartTheme, title: { text: 'No data', textStyle: { color: colors.textMuted, fontSize: 13 }, left: 'center', top: 'center' } };
+
+  const labels = data.map((d) => d.label);
+  const values = data.map((d) => d.value);
+  const colorByLabel = (label) => severityColors[label] || chartColors[labels.indexOf(label) % chartColors.length];
+
+  if (chartType === 'pie' || chartType === 'donut') {
+    return {
+      ...baseChartTheme,
+      tooltip: { ...baseChartTheme.tooltip, trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { ...baseChartTheme.legend, orient: 'vertical', left: 8, top: 'center', type: 'scroll' },
+      series: [{
+        type: 'pie',
+        radius: chartType === 'donut' ? ['40%', '72%'] : '72%',
+        center: ['62%', '50%'],
+        data: data.map((d) => ({ name: d.label, value: d.value, itemStyle: { color: colorByLabel(d.label) } })),
+        label: { color: colors.textMuted, fontSize: 10, formatter: '{b}\n{d}%' },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } },
+      }],
+    };
+  }
+
+  if (chartType === 'hbar') {
+    const rev = [...data].reverse();
+    return {
+      ...baseChartTheme,
+      tooltip: { ...baseChartTheme.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#2a2d35' } }, axisLabel: { color: colors.textMuted } },
+      yAxis: { type: 'category', data: rev.map(d => d.label), axisLabel: { color: colors.textMuted, fontSize: 10 }, axisTick: { show: false }, axisLine: { lineStyle: { color: '#2a2d35' } } },
+      series: [{
+        type: 'bar',
+        data: rev.map((d, i) => ({ value: d.value, itemStyle: { color: chartColors[i % chartColors.length], borderRadius: [0, 3, 3, 0] } })),
+        barMaxWidth: 18,
+      }],
+    };
+  }
+
+  if (chartType === 'line' || chartType === 'area') {
+    return {
+      ...baseChartTheme,
+      tooltip: { ...baseChartTheme.tooltip, trigger: 'axis' },
+      grid: { left: 10, right: 16, top: 16, bottom: 10, containLabel: true },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: colors.textMuted, fontSize: 10, rotate: labels.length > 8 ? 30 : 0 }, axisLine: { lineStyle: { color: '#2a2d35' } }, axisTick: { show: false }, boundaryGap: false },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#2a2d35' } }, axisLabel: { color: colors.textMuted } },
+      series: [{
+        type: 'line',
+        data: values,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: colors.accent, width: 2 },
+        itemStyle: { color: colors.accent },
+        areaStyle: chartType === 'area' ? { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(59,130,246,0.35)' }, { offset: 1, color: 'rgba(59,130,246,0.02)' }] } } : undefined,
+      }],
+    };
+  }
+
+  if (chartType === 'radar') {
+    const max = Math.max(...values) * 1.2 || 1;
+    return {
+      ...baseChartTheme,
+      radar: {
+        indicator: labels.slice(0, 12).map((l) => ({ name: l, max })),
+        shape: 'polygon',
+        axisName: { color: colors.textMuted, fontSize: 9 },
+        splitArea: { areaStyle: { color: ['rgba(59,130,246,0.02)', 'rgba(59,130,246,0.06)'] } },
+        splitLine: { lineStyle: { color: '#2a2d35' } },
+        axisLine: { lineStyle: { color: '#2a2d35' } },
+      },
+      series: [{
+        type: 'radar',
+        data: [{ value: values.slice(0, 12), areaStyle: { color: 'rgba(59,130,246,0.25)' }, lineStyle: { color: colors.accent }, itemStyle: { color: colors.accent } }],
+      }],
+    };
+  }
+
+  // bar
+  return {
+    ...baseChartTheme,
+    tooltip: { ...baseChartTheme.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 10, right: 16, top: 16, bottom: 10, containLabel: true },
+    xAxis: { type: 'category', data: labels, axisLabel: { color: colors.textMuted, fontSize: 10, rotate: labels.length > 6 ? 35 : 0 }, axisLine: { lineStyle: { color: '#2a2d35' } }, axisTick: { show: false } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#2a2d35' } }, axisLabel: { color: colors.textMuted } },
+    series: [{
+      type: 'bar',
+      data: values.map((v, i) => ({ value: v, itemStyle: { color: chartColors[i % chartColors.length], borderRadius: [3, 3, 0, 0] } })),
+      barMaxWidth: 32,
+    }],
+  };
+}
+
+function buildStackedOption(crossData) {
+  if (!crossData?.data?.length) return { ...baseChartTheme, title: { text: 'No data', textStyle: { color: colors.textMuted }, left: 'center', top: 'center' } };
+  const { columns, data } = crossData;
+  return {
+    ...baseChartTheme,
+    tooltip: { ...baseChartTheme.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { ...baseChartTheme.legend, data: columns },
+    grid: { left: 10, right: 16, top: 30, bottom: 10, containLabel: true },
+    xAxis: { type: 'category', data: data.map(d => d.name), axisLabel: { color: colors.textMuted, fontSize: 10, rotate: 25 }, axisLine: { lineStyle: { color: '#2a2d35' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#2a2d35' } }, axisLabel: { color: colors.textMuted } },
+    series: columns.map((col, i) => ({
+      name: col, type: 'bar', stack: 'total',
+      data: data.map(d => d[col] || 0),
+      itemStyle: { color: severityColors[col] || chartColors[i % chartColors.length] },
+    })),
+  };
+}
+
+function DynamicPanel({ defaultField, defaultChart, defaultMetric, title, span, height, uploadId }) {
+  const [field, setField] = useState(defaultField);
+  const [chart, setChart] = useState(defaultChart);
+  const [metric, setMetric] = useState(defaultMetric || 'count');
+  const [data, setData] = useState([]);
+
+  const limit = (chart === 'pie' || chart === 'donut' || chart === 'radar') ? 8 : 15;
+
+  const fetchData = useCallback(async () => {
+    const params = { group_by: field, metric, limit, order: 'desc' };
+    if (uploadId) params.upload_id = uploadId;
+    try {
+      const { data: res } = await api.get('/analytics/query', { params });
+      setData(res);
+    } catch {}
+  }, [field, metric, limit, uploadId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   return (
-    <div style={styles.statCard}>
-      <span className="material-icons-outlined" style={{ fontSize: 32, color }}>{icon}</span>
-      <div style={{ marginLeft: 16 }}>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{value?.toLocaleString() ?? '-'}</div>
-        <div style={{ fontSize: 13, color: '#718096' }}>{label}</div>
-      </div>
-    </div>
+    <Panel title={title} span={span || 1} height={height || 280}
+      controls={<>
+        <FieldSelect value={field} onChange={setField} options={FIELD_OPTIONS} />
+        <FieldSelect value={metric} onChange={setMetric} options={METRIC_OPTIONS} />
+        <FieldSelect value={chart} onChange={setChart} options={CHART_TYPES} />
+      </>}
+    >
+      <ReactECharts option={buildChartOption(data, chart)} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+    </Panel>
   );
 }
 
-function ChartCard({ title, children, span }) {
+function CrossPanel({ defaultRow, defaultCol, title, span, height, uploadId }) {
+  const [row, setRow] = useState(defaultRow);
+  const [col, setCol] = useState(defaultCol);
+  const [data, setData] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    const params = { row, col, limit: 10 };
+    if (uploadId) params.upload_id = uploadId;
+    try {
+      const { data: res } = await api.get('/analytics/cross', { params });
+      setData(res);
+    } catch {}
+  }, [row, col, uploadId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   return (
-    <div style={{ ...styles.chartCard, gridColumn: span ? `span ${span}` : undefined }}>
-      <h3 style={styles.chartTitle}>{title}</h3>
-      {children}
-    </div>
+    <Panel title={title} span={span || 2} height={height || 300}
+      controls={<>
+        <span style={{ fontSize: 10, color: colors.textMuted }}>Row:</span>
+        <FieldSelect value={row} onChange={setRow} options={FIELD_OPTIONS} />
+        <span style={{ fontSize: 10, color: colors.textMuted }}>Col:</span>
+        <FieldSelect value={col} onChange={setCol} options={FIELD_OPTIONS} />
+      </>}
+    >
+      <ReactECharts option={buildStackedOption(data)} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+    </Panel>
   );
 }
 
 export default function Dashboard() {
+  const [uploads, setUploads] = useState([]);
+  const [selectedUpload, setSelectedUpload] = useState('');
   const [summary, setSummary] = useState({});
-  const [byDrug, setByDrug] = useState([]);
-  const [bySeverity, setBySeverity] = useState([]);
-  const [byOutcome, setByOutcome] = useState([]);
-  const [byGender, setByGender] = useState([]);
-  const [byMonth, setByMonth] = useState([]);
-  const [byAge, setByAge] = useState([]);
-  const [byType, setByType] = useState([]);
-  const [byDrugClass, setByDrugClass] = useState([]);
-  const [serious, setSerious] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [s, d, sv, o, g, m, a, t, dc, sr] = await Promise.all([
-          api.get('/analytics/summary'),
-          api.get('/analytics/by-drug'),
-          api.get('/analytics/by-severity'),
-          api.get('/analytics/by-outcome'),
-          api.get('/analytics/by-gender'),
-          api.get('/analytics/by-month'),
-          api.get('/analytics/by-age'),
-          api.get('/analytics/by-type'),
-          api.get('/analytics/by-drug-class'),
-          api.get('/analytics/serious'),
-        ]);
+        const [u, s] = await Promise.all([api.get('/uploads'), api.get('/analytics/summary')]);
+        setUploads(u.data || []);
         setSummary(s.data);
-        setByDrug(d.data);
-        setBySeverity(sv.data);
-        setByOutcome(o.data);
-        setByGender(g.data);
-        setByMonth(m.data);
-        setByAge(a.data);
-        setByType(t.data);
-        setByDrugClass(dc.data);
-        setSerious(sr.data);
       } catch {}
       setLoading(false);
     }
     load();
   }, []);
 
-  if (loading) return <p style={{ padding: 40, color: '#718096' }}>Loading dashboard...</p>;
+  useEffect(() => {
+    async function loadSummary() {
+      const params = selectedUpload ? { upload_id: selectedUpload } : {};
+      try {
+        const { data } = await api.get('/analytics/summary', { params });
+        setSummary(data);
+      } catch {}
+    }
+    if (!loading) loadSummary();
+  }, [selectedUpload, loading]);
+
+  if (loading) return <div style={{ padding: 40, color: colors.textMuted }}>Loading...</div>;
 
   if (!summary.total_reactions) {
     return (
       <div style={{ textAlign: 'center', padding: '80px 24px' }}>
-        <span className="material-icons-outlined" style={{ fontSize: 64, color: '#cbd5e0' }}>
-          analytics
-        </span>
-        <h2 style={{ marginTop: 16, color: '#4a5568' }}>No Data Yet</h2>
-        <p style={{ color: '#718096', marginTop: 8 }}>Upload a drug reaction Excel file to see visualizations here.</p>
+        <span className="material-icons-outlined" style={{ fontSize: 64, color: colors.panelBorder }}>analytics</span>
+        <h2 style={{ marginTop: 16, color: colors.text }}>No Data Yet</h2>
+        <p style={{ color: colors.textMuted, marginTop: 8 }}>Upload a drug reaction Excel file to see visualizations.</p>
       </div>
     );
   }
 
+  const uid = selectedUpload || undefined;
+
   return (
     <div>
-      <h1 style={styles.pageTitle}>Dashboard</h1>
-      <p style={styles.pageSubtitle}>Adverse drug reaction analytics overview</p>
-
-      {/* Summary Cards */}
-      <div style={styles.statGrid}>
-        <StatCard icon="science" label="Total Reactions" value={summary.total_reactions} color="#4f8cf7" />
-        <StatCard icon="people" label="Unique Patients" value={summary.total_patients} color="#38a169" />
-        <StatCard icon="upload_file" label="Total Uploads" value={summary.total_uploads} color="#ed8936" />
-        <StatCard
-          icon="warning"
-          label="Severe / Life-threatening"
-          value={
-            (summary.severity_breakdown || [])
-              .filter((s) => s.label === 'Severe' || s.label === 'Life-threatening')
-              .reduce((a, b) => a + b.count, 0)
-          }
-          color="#e53e3e"
-        />
+      <div style={styles.topBar}>
+        <h1 style={styles.pageTitle}>Adverse Drug Reaction Dashboard</h1>
+        <select value={selectedUpload} onChange={(e) => setSelectedUpload(e.target.value)} style={styles.uploadSelect}>
+          <option value="">All Uploads</option>
+          {uploads.map((u) => (
+            <option key={u.id} value={u.id}>{u.filename} ({u.row_count} rows)</option>
+          ))}
+        </select>
       </div>
 
-      {/* Charts Grid */}
-      <div style={styles.chartsGrid}>
-        {/* Reactions by Month - Line Chart */}
-        <ChartCard title="Reactions Over Time (Monthly)" span={2}>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={byMonth}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
-              <XAxis dataKey="label" fontSize={12} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#4f8cf7" strokeWidth={2} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      <div style={styles.statGrid}>
+        <StatPanel label="Total Reactions" value={summary.total_reactions} icon="science" color={colors.accent} />
+        <StatPanel label="Unique Patients" value={summary.total_patients} icon="people" color={colors.cyan} />
+        <StatPanel label="Serious Rate" value={`${(summary.serious_pct || 0).toFixed(1)}%`} icon="warning" color={colors.orange} subtext={`${summary.serious_count} serious`} />
+        <StatPanel label="Fatal" value={summary.fatal_count} icon="dangerous" color={colors.red} />
+        <StatPanel label="Hospitalized" value={summary.hospital_count} icon="local_hospital" color={colors.purple} />
+        <StatPanel label="Avg Age" value={`${(summary.avg_age || 0).toFixed(0)} yrs`} icon="elderly" color={colors.green} />
+        <StatPanel label="Avg Onset" value={`${(summary.avg_onset || 0).toFixed(1)} days`} icon="schedule" color={colors.pink} />
+        <StatPanel label="Uploads" value={summary.total_uploads} icon="upload_file" color={colors.lime} />
+      </div>
 
-        {/* Top Drugs - Bar Chart */}
-        <ChartCard title="Top 15 Drugs by Reactions" span={2}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={byDrug} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
-              <XAxis type="number" fontSize={12} />
-              <YAxis type="category" dataKey="label" fontSize={11} width={80} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#4f8cf7" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Severity - Pie Chart */}
-        <ChartCard title="Severity Distribution">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie data={bySeverity} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
-                {bySeverity.map((entry) => (
-                  <Cell key={entry.label} fill={SEVERITY_COLORS[entry.label] || '#718096'} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Outcome - Pie Chart */}
-        <ChartCard title="Outcome Distribution">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie data={byOutcome} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
-                {byOutcome.map((entry, i) => (
-                  <Cell key={entry.label} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Gender Split - Pie Chart */}
-        <ChartCard title="Gender Distribution">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie data={byGender} dataKey="count" nameKey="label" cx="50%" cy="50%" innerRadius={50} outerRadius={100} label>
-                {byGender.map((entry, i) => (
-                  <Cell key={entry.label} fill={i === 0 ? '#4f8cf7' : '#e53e3e'} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Serious vs Non-Serious */}
-        <ChartCard title="Serious vs Non-Serious">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie data={serious} dataKey="count" nameKey="label" cx="50%" cy="50%" innerRadius={50} outerRadius={100} label>
-                {serious.map((entry, i) => (
-                  <Cell key={entry.label} fill={i === 0 ? '#e53e3e' : '#38a169'} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Age Distribution - Bar Chart */}
-        <ChartCard title="Age Group Distribution">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={byAge}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
-              <XAxis dataKey="label" fontSize={12} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#9f7aea" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Top Reaction Types - Bar Chart */}
-        <ChartCard title="Top Reaction Types">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={byType}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
-              <XAxis dataKey="label" fontSize={10} angle={-30} textAnchor="end" height={60} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#ed8936" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Drug Class Breakdown - Bar Chart */}
-        <ChartCard title="Reactions by Drug Class" span={2}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={byDrugClass}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#edf2f7" />
-              <XAxis dataKey="label" fontSize={11} angle={-20} textAnchor="end" height={60} />
-              <YAxis fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3182ce" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      <div style={styles.chartGrid}>
+        <DynamicPanel title="Reactions Over Time" defaultField="month" defaultChart="area" span={2} uploadId={uid} />
+        <DynamicPanel title="Top Drugs" defaultField="drug_name" defaultChart="hbar" span={2} uploadId={uid} />
+        <DynamicPanel title="Severity" defaultField="reaction_severity" defaultChart="pie" uploadId={uid} />
+        <DynamicPanel title="Outcomes" defaultField="outcome" defaultChart="donut" uploadId={uid} />
+        <DynamicPanel title="Reaction Types" defaultField="reaction_type" defaultChart="bar" uploadId={uid} />
+        <DynamicPanel title="Age Groups" defaultField="age_group" defaultChart="bar" uploadId={uid} />
+        <DynamicPanel title="Gender" defaultField="patient_gender" defaultChart="pie" uploadId={uid} />
+        <DynamicPanel title="Reporter" defaultField="reporter_type" defaultChart="donut" uploadId={uid} />
+        <DynamicPanel title="Drug Class" defaultField="drug_class" defaultChart="bar" uploadId={uid} />
+        <DynamicPanel title="Route" defaultField="route_of_admin" defaultChart="pie" uploadId={uid} />
+        <DynamicPanel title="State" defaultField="facility_state" defaultChart="bar" uploadId={uid} />
+        <DynamicPanel title="Onset Period" defaultField="onset_bucket" defaultChart="donut" uploadId={uid} />
+        <CrossPanel title="Severity by Drug (Stacked)" defaultRow="drug_name" defaultCol="reaction_severity" uploadId={uid} />
+        <CrossPanel title="Outcome by Drug Class" defaultRow="drug_class" defaultCol="outcome" uploadId={uid} />
       </div>
     </div>
   );
 }
 
 const styles = {
-  pageTitle: { fontSize: 22, fontWeight: 700, color: '#1a1a2e' },
-  pageSubtitle: { fontSize: 14, color: '#718096', marginBottom: 24 },
-  statGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 16,
-    marginBottom: 24,
-  },
-  statCard: {
-    display: 'flex',
-    alignItems: 'center',
-    background: '#fff',
-    padding: '20px 24px',
-    borderRadius: 12,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-  },
-  chartsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 20,
-  },
-  chartCard: {
-    background: '#fff',
-    borderRadius: 12,
-    padding: '20px 24px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-  },
-  chartTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#2d3748',
-    marginBottom: 16,
-  },
+  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 },
+  pageTitle: { fontSize: 18, fontWeight: 700, color: colors.textBright },
+  uploadSelect: { background: colors.panel, color: colors.text, border: `1px solid ${colors.panelBorder}`, borderRadius: 4, padding: '6px 12px', fontSize: 12, cursor: 'pointer', outline: 'none', minWidth: 220 },
+  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginBottom: 14 },
+  chartGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 },
 };

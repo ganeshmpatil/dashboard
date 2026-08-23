@@ -6,11 +6,27 @@
 
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: #f0f2f5;
-  color: #1a1a2e;
+  background: #0b0e11;
+  color: #d1d5db;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1d23;
+}
+::-webkit-scrollbar-thumb {
+  background: #3f4450;
+  border-radius: 3px;
 }
 
 .material-icons-outlined {
   vertical-align: middle;
   font-size: 20px;
+}
+
+select, input, button {
+  font-family: 'Inter', -apple-system, sans-serif;
 }
